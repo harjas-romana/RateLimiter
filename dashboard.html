@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Limiter Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep:       #020408;
+            --bg-surface:    #070d18;
+            --bg-card:       #0b1424;
+            --bg-elevated:   #0f1d30;
+            --border:        #1a2d47;
+            --border-bright: #1e3a5f;
+            --accent-blue:   #1a6cff;
+            --accent-cyan:   #00d4ff;
+            --accent-teal:   #00ffcc;
+            --text-primary:  #e8f0fe;
+            --text-secondary:#7a9abf;
+            --text-muted:    #3d5a80;
+            --success:       #00e676;
+            --success-glow:  rgba(0, 230, 118, 0.25);
+            --danger:        #ff1744;
+            --danger-glow:   rgba(255, 23, 68, 0.25);
+            --warn:          #ffab00;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'IBM Plex Mono', monospace;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 24px 80px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated background mesh ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 10% 0%,   rgba(26,108,255,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 90% 10%,  rgba(0,212,255,0.08) 0%, transparent 55%),
+                radial-gradient(ellipse 70% 40% at 50% 100%, rgba(0,255,204,0.06) 0%, transparent 50%),
+                linear-gradient(180deg, #020408 0%, #04090f 40%, #060d1a 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Grid overlay ── */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(26,108,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(26,108,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wrapper {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 680px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 32px;
+        }
+
+        /* ── Header ── */
+        .header {
+            width: 100%;
+            text-align: center;
+            padding-bottom: 8px;
+        }
+
+        .header-eyebrow {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--accent-cyan);
+            margin-bottom: 12px;
+            opacity: 0;
+            animation: fadeSlideDown 0.6s ease forwards 0.1s;
+        }
+
+        .header h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(28px, 5vw, 46px);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.05;
+            background: linear-gradient(135deg, #e8f0fe 0%, var(--accent-cyan) 50%, var(--accent-teal) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            opacity: 0;
+            animation: fadeSlideDown 0.6s ease forwards 0.2s;
+        }
+
+        .header-sub {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            letter-spacing: 0.05em;
+            opacity: 0;
+            animation: fadeSlideDown 0.6s ease forwards 0.35s;
+        }
+
+        /* thin accent line */
+        .header-line {
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+            margin: 16px auto 0;
+            border-radius: 2px;
+            opacity: 0;
+            animation: fadeSlideDown 0.6s ease forwards 0.4s;
+        }
+
+        /* ── Controls card ── */
+        .controls {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            animation: fadeSlideUp 0.55s ease forwards 0.45s;
+        }
+
+        .controls::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-blue), var(--accent-cyan), transparent);
+        }
+
+        .field-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-wrap::before {
+            content: '//';
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            color: var(--accent-blue);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 13px 14px 13px 38px;
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            letter-spacing: 0.02em;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]::placeholder {
+            color: var(--text-muted);
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(26,108,255,0.12), 0 0 16px rgba(26,108,255,0.08);
+        }
+
+        .fire-btn {
+            position: relative;
+            width: 100%;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #0a2a5e 0%, #0f3a7a 50%, #0a2a5e 100%);
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Syne', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s;
+        }
+
+        .fire-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(26,108,255,0.2));
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .fire-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 24px rgba(26,108,255,0.35), 0 0 0 1px rgba(0,212,255,0.3);
+            border-color: var(--accent-cyan);
+        }
+
+        .fire-btn:hover::before { opacity: 1; }
+
+        .fire-btn:active { transform: translateY(0); }
+
+        .fire-btn span {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-icon {
+            width: 16px; height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ── Stats bar ── */
+        .stats-bar {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            opacity: 0;
+            animation: fadeSlideUp 0.55s ease forwards 0.55s;
+        }
+
+        .stat-pill {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-pill::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--pill-color, var(--accent-blue));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s ease;
+        }
+
+        .stat-pill.active::after { transform: scaleX(1); }
+
+        .stat-label {
+            font-size: 9px;
+            font-weight: 500;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-family: 'Syne', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--pill-color, var(--text-primary));
+            line-height: 1;
+            transition: color 0.3s;
+        }
+
+        .stat-pill.total  { --pill-color: var(--accent-cyan); }
+        .stat-pill.passed { --pill-color: var(--success); }
+        .stat-pill.blocked-stat { --pill-color: var(--danger); }
+
+        /* ── Request grid ── */
+        .grid-section {
+            width: 100%;
+            opacity: 0;
+            animation: fadeSlideUp 0.55s ease forwards 0.65s;
+        }
+
+        .section-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 8px;
+        }
+
+        .box {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            position: relative;
+            overflow: hidden;
+            transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease, transform 0.2s ease;
+        }
+
+        .box::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.35s ease;
+        }
+
+        .box.pending {
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        .box.success {
+            background: rgba(0, 230, 118, 0.1);
+            border-color: var(--success);
+            color: var(--success);
+            box-shadow: 0 0 12px var(--success-glow), inset 0 0 8px rgba(0,230,118,0.05);
+            transform: scale(1.04);
+        }
+
+        .box.success::before {
+            background: radial-gradient(circle at center, rgba(0,230,118,0.15), transparent 70%);
+            opacity: 1;
+        }
+
+        .box.blocked {
+            background: rgba(255, 23, 68, 0.1);
+            border-color: var(--danger);
+            color: var(--danger);
+            box-shadow: 0 0 12px var(--danger-glow), inset 0 0 8px rgba(255,23,68,0.05);
+            transform: scale(1.04);
+        }
+
+        .box.blocked::before {
+            background: radial-gradient(circle at center, rgba(255,23,68,0.15), transparent 70%);
+            opacity: 1;
+        }
+
+        .box.warn-box {
+            background: rgba(255, 171, 0, 0.1);
+            border-color: var(--warn);
+            color: var(--warn);
+        }
+
+        /* ── Log terminal ── */
+        .log-section {
+            width: 100%;
+            opacity: 0;
+            animation: fadeSlideUp 0.55s ease forwards 0.75s;
+        }
+
+        .log-header {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red    { background: #ff5f57; }
+        .dot-yellow { background: #febc2e; }
+        .dot-green  { background: #28c840; }
+
+        .log-title {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-left: 4px;
+        }
+
+        .log-live {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 9px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .live-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            animation: blink 1.4s ease-in-out infinite;
+        }
+
+        .log {
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            padding: 16px;
+            height: 180px;
+            overflow-y: auto;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            line-height: 1.7;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-bright) transparent;
+        }
+
+        .log::-webkit-scrollbar { width: 4px; }
+        .log::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 4px; }
+
+        .log-ready { color: var(--text-muted); font-style: italic; }
+
+        /* ── Footer ── */
+        .footer {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            opacity: 0;
+            animation: fadeSlideUp 0.55s ease forwards 0.85s;
+        }
+
+        /* ── Keyframes ── */
+        @keyframes fadeSlideDown {
+            from { opacity: 0; transform: translateY(-12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50%       { opacity: 1; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.2; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-eyebrow">// Infrastructure Tooling</div>
+        <h1>Rate Limiter<br>Visualizer</h1>
+        <div class="header-sub">sliding window · jwt auth · http/1.1</div>
+        <div class="header-line"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div>
+            <div class="field-label">Authorization Token</div>
+            <div class="input-wrap">
+                <input type="text" id="jwt" placeholder="Paste your jwt.io bearer token here...">
+            </div>
+        </div>
+        <button class="fire-btn" onclick="fireRequests()">
+            <span>
+                <svg class="btn-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M8 2L14 8L8 14M2 8H14" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Execute 20 Requests
+            </span>
+        </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+        <div class="stat-pill total" id="stat-total">
+            <div class="stat-label">Total</div>
+            <div class="stat-value" id="val-total">—</div>
+        </div>
+        <div class="stat-pill passed" id="stat-passed">
+            <div class="stat-label">Allowed</div>
+            <div class="stat-value" id="val-passed">—</div>
+        </div>
+        <div class="stat-pill blocked-stat" id="stat-blocked">
+            <div class="stat-label">Blocked</div>
+            <div class="stat-value" id="val-blocked">—</div>
+        </div>
+    </div>
+
+    <!-- Grid -->
+    <div class="grid-section">
+        <div class="section-title">Request Matrix</div>
+        <div class="grid" id="grid"></div>
+    </div>
+
+    <!-- Log -->
+    <div class="log-section">
+        <div class="log-header">
+            <div class="dot dot-red"></div>
+            <div class="dot dot-yellow"></div>
+            <div class="dot dot-green"></div>
+            <span class="log-title">stdout — event log</span>
+            <div class="log-live">
+                <div class="live-dot" id="live-dot" style="opacity:0.3;animation:none;"></div>
+                <span id="live-label">idle</span>
+            </div>
+        </div>
+        <div class="log" id="log">
+            <div class="log-ready">▸ Awaiting signal — paste token and fire requests.</div>
+        </div>
+    </div>
+
+    <div class="footer">rate-limiter-viz v2.0 · sliding-window algorithm · © 2025</div>
+
+</div>
+
+<script>
+    const API_URL = "http://localhost:8080/api/protected";
+    const TOTAL   = 20;
+
+    let passed = 0, blocked = 0, done = 0;
+
+    function setLive(active) {
+        const dot   = document.getElementById('live-dot');
+        const label = document.getElementById('live-label');
+        if (active) {
+            dot.style.opacity = '1';
+            dot.style.animation = 'blink 1.4s ease-in-out infinite';
+            label.textContent = 'live';
+            label.style.color = 'var(--accent-cyan)';
+        } else {
+            dot.style.opacity = '0.3';
+            dot.style.animation = 'none';
+            label.textContent = 'idle';
+            label.style.color = '';
+        }
+    }
+
+    function updateStats() {
+        document.getElementById('val-total').textContent   = done;
+        document.getElementById('val-passed').textContent  = passed;
+        document.getElementById('val-blocked').textContent = blocked;
+
+        ['stat-total','stat-passed','stat-blocked'].forEach(id => {
+            document.getElementById(id).classList.add('active');
+        });
+    }
+
+    function appendLog(html) {
+        const log = document.getElementById('log');
+        log.innerHTML += html;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    async function fireRequests() {
+        const token = document.getElementById('jwt').value.trim();
+        if (!token) {
+            alert('Authorization token required.');
+            return;
+        }
+
+        // Reset
+        const grid = document.getElementById('grid');
+        const log  = document.getElementById('log');
+        grid.innerHTML = '';
+        log.innerHTML  = '';
+        passed = blocked = done = 0;
+
+        document.getElementById('val-total').textContent   = '—';
+        document.getElementById('val-passed').textContent  = '—';
+        document.getElementById('val-blocked').textContent = '—';
+        ['stat-total','stat-passed','stat-blocked'].forEach(id =>
+            document.getElementById(id).classList.remove('active'));
+
+        setLive(true);
+
+        const ts = () => {
+            const d = new Date();
+            return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}.${String(d.getMilliseconds()).padStart(3,'0')}`;
+        };
+
+        // Build boxes
+        for (let i = 1; i <= TOTAL; i++) {
+            const box = document.createElement('div');
+            box.className = 'box';
+            box.id = `box-${i}`;
+            box.textContent = i;
+            grid.appendChild(box);
+        }
+
+        appendLog(`<div style="color:var(--text-muted)">── session started at ${ts()} ──</div>`);
+
+        for (let i = 1; i <= TOTAL; i++) {
+            setTimeout(async () => {
+                const box = document.getElementById(`box-${i}`);
+                box.classList.add('pending');
+
+                try {
+                    const res = await fetch(API_URL, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+
+                    box.classList.remove('pending');
+                    done++;
+
+                    if (res.status === 200) {
+                        passed++;
+                        box.classList.add('success');
+                        appendLog(`<div style="color:var(--success)"><span style="color:var(--text-muted)">[${ts()}]</span> <span style="color:var(--accent-cyan)">REQ_${String(i).padStart(2,'0')}</span>  <span style="color:var(--success)">200 OK</span>  · allowed</div>`);
+                    } else if (res.status === 429) {
+                        blocked++;
+                        box.classList.add('blocked');
+                        appendLog(`<div><span style="color:var(--text-muted)">[${ts()}]</span> <span style="color:var(--accent-cyan)">REQ_${String(i).padStart(2,'0')}</span>  <span style="color:var(--danger)">429 TOO MANY REQUESTS</span>  · blocked</div>`);
+                    } else {
+                        box.classList.add('warn-box');
+                        appendLog(`<div><span style="color:var(--text-muted)">[${ts()}]</span> <span style="color:var(--accent-cyan)">REQ_${String(i).padStart(2,'0')}</span>  <span style="color:var(--warn)">${res.status} ERROR</span></div>`);
+                    }
+                } catch (err) {
+                    box.classList.remove('pending');
+                    box.classList.add('warn-box');
+                    done++;
+                    appendLog(`<div><span style="color:var(--text-muted)">[${ts()}]</span> <span style="color:var(--accent-cyan)">REQ_${String(i).padStart(2,'0')}</span>  <span style="color:var(--warn)">NETWORK ERR</span>  · offline or cors</div>`);
+                }
+
+                updateStats();
+
+                if (done === TOTAL) {
+                    setLive(false);
+                    appendLog(`<div style="color:var(--text-muted)">── session complete · ${passed} allowed · ${blocked} blocked ──</div>`);
+                }
+
+            }, i * 150);
+        }
+    }
+</script>
+</body>
+</html>

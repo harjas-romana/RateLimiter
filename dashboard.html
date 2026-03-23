@@ -245,6 +245,140 @@
 
         .fire-btn:active { transform: translateY(0); }
 
+        /* ── Endpoint info strip ── */
+        .endpoint-strip {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-wrap: wrap;
+            gap: 8px 0;
+            opacity: 0;
+            animation: fadeSlideUp 0.55s ease forwards 0.4s;
+        }
+
+        .ep-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 18px;
+        }
+
+        .ep-item:first-child { padding-left: 0; }
+
+        .ep-label {
+            font-size: 9px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .ep-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--accent-cyan);
+        }
+
+        .ep-divider {
+            width: 1px;
+            height: 18px;
+            background: var(--border);
+            flex-shrink: 0;
+        }
+
+        /* ── Token quick-fill ── */
+        .token-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .token-row .input-wrap {
+            flex: 1;
+        }
+
+        .copy-token-btn {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 13px 16px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-bright);
+            border-radius: 8px;
+            color: var(--accent-cyan);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.15s;
+            white-space: nowrap;
+        }
+
+        .copy-token-btn:hover {
+            background: rgba(0, 212, 255, 0.08);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 14px rgba(0, 212, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .copy-token-btn:active { transform: translateY(0); }
+
+        .copy-token-btn.copied {
+            color: var(--success);
+            border-color: var(--success);
+            background: rgba(0, 230, 118, 0.08);
+        }
+
+        .copy-token-btn svg { flex-shrink: 0; }
+
+        /* ── Token badge strip ── */
+        .token-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            background: rgba(0, 212, 255, 0.04);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: 6px;
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+            overflow: hidden;
+        }
+
+        .token-badge-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            flex-shrink: 0;
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        .token-badge-text {
+            font-family: 'Space Mono', monospace;
+            font-size: 9px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-muted);
+        }
+
+        .token-badge-label {
+            flex-shrink: 0;
+            font-size: 9px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent-cyan);
+            opacity: 0.7;
+        }
+
         .fire-btn span {
             position: relative;
             z-index: 1;
@@ -524,12 +658,49 @@
         <div class="header-line"></div>
     </div>
 
+    <!-- Endpoint info -->
+    <div class="endpoint-strip">
+        <div class="ep-item">
+            <span class="ep-label">host</span>
+            <span class="ep-value">harjas-ratelimiter.onrender.com</span>
+        </div>
+        <div class="ep-divider"></div>
+        <div class="ep-item">
+            <span class="ep-label">route</span>
+            <span class="ep-value">/api/protected</span>
+        </div>
+        <div class="ep-divider"></div>
+        <div class="ep-item">
+            <span class="ep-label">runtime</span>
+            <span class="ep-value">Docker · Render</span>
+        </div>
+        <div class="ep-divider"></div>
+        <div class="ep-item">
+            <span class="ep-label">algo</span>
+            <span class="ep-value">Sliding Window</span>
+        </div>
+    </div>
+
     <!-- Controls -->
     <div class="controls">
         <div>
             <div class="field-label">Authorization Token</div>
-            <div class="input-wrap">
-                <input type="text" id="jwt" placeholder="Paste your jwt.io bearer token here...">
+            <div class="token-row">
+                <div class="input-wrap">
+                    <input type="text" id="jwt" placeholder="Paste your jwt.io bearer token here...">
+                </div>
+                <button class="copy-token-btn" id="copyBtn" onclick="fillToken()" title="Auto-fill demo token">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="5" y="2" width="9" height="11" rx="1.5"/>
+                        <path d="M3 4H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1"/>
+                    </svg>
+                    <span id="copyLabel">Use Demo</span>
+                </button>
+            </div>
+            <div class="token-badge" style="margin-top: 8px;">
+                <div class="token-badge-dot"></div>
+                <span class="token-badge-label">demo·jwt</span>
+                <span class="token-badge-text">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzEyMyJ9.2kh4grAqqDRCL7w-TZMBO_S7oRTJenwG2_z7RRFBA_4</span>
             </div>
         </div>
         <button class="fire-btn" onclick="fireRequests()">
@@ -586,8 +757,29 @@
 </div>
 
 <script>
-    const API_URL = "http://localhost:8080/api/protected";
-    const TOTAL   = 20;
+    const API_URL    = "https://harjas-ratelimiter.onrender.com/api/protected";
+    const TOTAL      = 20;
+    const DEMO_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzEyMyJ9.2kh4grAqqDRCL7w-TZMBO_S7oRTJenwG2_z7RRFBA_4";
+
+    function fillToken() {
+        const input = document.getElementById('jwt');
+        const btn   = document.getElementById('copyBtn');
+        const label = document.getElementById('copyLabel');
+
+        input.value = DEMO_TOKEN;
+        input.style.borderColor = 'var(--accent-cyan)';
+        input.style.boxShadow   = '0 0 0 3px rgba(0,212,255,0.12)';
+
+        btn.classList.add('copied');
+        label.textContent = 'Filled ✓';
+
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            label.textContent = 'Use Demo';
+            input.style.borderColor = '';
+            input.style.boxShadow   = '';
+        }, 2000);
+    }
 
     let passed = 0, blocked = 0, done = 0;
 

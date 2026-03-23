@@ -47,7 +47,7 @@ Want to break it on your own machine? Piece of cake.
 
 1. **Clone the repo:**
    ```bash
-   git clone https://github.com/your-username/RateLimiter.git
+   git clone https://github.com/harjas-romana/RateLimiter
    cd RateLimiter
    ```
 
